@@ -2,90 +2,119 @@
 
 ## Overview
 
-BugLens is a Manifest V3 Chrome extension. It has three contexts:
+BugLens is a Chrome extension (Manifest V3) built with **WXT + React + TypeScript** that helps users capture webpage context and turn it into a structured, editable bug report exportable as Markdown.
 
-1. **Popup** (`src/popup/`) — The visible UI. Renders when the user clicks the extension icon.
-2. **Background Service Worker** (`src/background/`) — The privileged context that runs `chrome.tabs` and `chrome.scripting`.
-3. **Injected Script** — An ephemeral function injected by `chrome.scripting.executeScript` to read `window.getSelection()`.
+## Stack
 
-## Capture Flow
+| Layer | Technology |
+|-------|-----------|
+| Extension framework | WXT (srcDir: `src/`, MV3) |
+| UI | React 18 + TypeScript |
+| Styling | Vanilla CSS (no Tailwind) |
+| Testing | Vitest (node env for Person A; jsdom per-file for Person B) |
+| Build | Vite (via WXT) |
 
-```
-User clicks "Capture This Page" in Popup
-        │
-        ▼
-Popup sends { type: "CAPTURE_TAB" } via chrome.runtime.sendMessage
-        │
-        ▼
-Background Service Worker receives message
-        │
-        ▼
-captureActiveTab() [src/utils/capture.ts]
-    ├─ chrome.tabs.query({ active: true, currentWindow: true })
-    │       → gets tab.id, tab.url, tab.title
-    ├─ isRestrictedUrl(tab.url)
-    │       → throws user-friendly Error if restricted
-    ├─ getSelectedText(tabId, url) [internal]
-    │       → chrome.scripting.executeScript injects:
-    │           () => window.getSelection()?.toString() ?? ""
-    │       → returns "" on any failure (never blocks capture)
-    └─ new Date().toISOString()  → capturedAt
-        │
-        ▼
-Returns CapturedContext { url, title, selectedText, capturedAt }
-        │
-        ▼
-Background sends { ok: true, data: CapturedContext } back to Popup
-        │
-        ▼
-Popup updates state → renders CapturePreview
-        │
-        ▼
-[Person B] ReportEditor receives CapturedContext as prop
-```
-
-## Why the Background Handles Capture
-
-In Manifest V3:
-- `chrome.scripting.executeScript` can be called from the popup directly **with `activeTab`**.  
-- However, delegating to the background keeps the popup thin and stateless, makes the capture logic independently testable without a DOM or browser context, and follows the standard MV3 pattern where privileged API calls live in the service worker.
-
-## Extension Contexts
-
-| Context | File | Runs When |
-|---------|------|-----------|
-| Popup | `src/popup/` | User clicks the extension icon |
-| Service Worker | `src/background/index.ts` | On-demand, when a message arrives or the extension is first installed |
-| Content (injected) | Ephemeral closure | Only when `captureActiveTab()` executes `scripting.executeScript` |
-
-## Permission Model
+## Folder Structure
 
 ```
-activeTab  ──────┐
-                 ├──► chrome.scripting.executeScript(tabId)
-scripting  ──────┘         (scoped to the single active tab only)
-
-tabs  ────────────────► chrome.tabs.query(...)  (read url, title)
+BugReport/
+├── src/
+│   ├── entrypoints/
+│   │   ├── background.ts          # Person A — MV3 service worker
+│   │   └── popup/
+│   │       ├── index.html         # Popup HTML entry
+│   │       └── main.tsx           # React mount point
+│   ├── types/                     # Shared contracts (DO NOT change without coordination)
+│   │   ├── bug-report.ts          # CapturedContext, BugReport
+│   │   └── messages.ts            # CaptureRequest, CaptureResponse
+│   ├── utils/
+│   │   ├── capture.ts             # Person A — captureActiveTab()
+│   │   └── __tests__/
+│   │       └── capture.test.ts    # Person A — capture unit tests
+│   ├── lib/                       # Person B — pure logic modules
+│   │   ├── reportInit.ts          # Report init from context + mocks + validation
+│   │   ├── markdown.ts            # Markdown generation, copy, download
+│   │   └── __tests__/
+│   │       ├── reportInit.test.ts # 18 unit tests
+│   │       └── markdown.test.ts   # 19 unit tests (jsdom env)
+│   └── popup/
+│       ├── App.tsx                # Root component (Person A scaffold + Person B wired in)
+│       ├── popup.css              # Person A's styles + Person B's bl- prefixed styles
+│       └── components/
+│           ├── CaptureButton.tsx   # Person A
+│           ├── CapturePreview.tsx  # Person A
+│           ├── ErrorBanner.tsx     # Person A
+│           ├── ReportEditor.tsx    # Person B — full report form
+│           ├── StepsEditor.tsx     # Person B — reproduction steps add/edit/remove
+│           ├── ExportPanel.tsx     # Person B — Markdown preview + copy/download
+│           ├── Toast.tsx           # Person B — copy/download feedback
+│           └── ValidationWarnings.tsx  # Person B — incomplete field warnings
+├── docs/
+│   ├── architecture.md
+│   ├── decisions.md
+│   ├── testing.md
+│   └── ai-workflow.md
+├── wxt.config.ts
+├── vitest.config.ts
+└── tsconfig.json
 ```
 
-No host permissions (`<all_urls>`, `*://*/*`) are requested. `activeTab` plus `scripting` gives temporary access to the current page only for the duration of the API call.
-
-## Data Flow (no external calls)
+## Data Flow
 
 ```
-chrome.tabs API → captureActiveTab() → CapturedContext (in memory)
-                                             │
-                                             ▼
-                                    chrome.runtime message
-                                             │
-                                             ▼
-                                    React state (popup only)
-                                             │
-                                             ▼
-                              [Person B] BugReport (in memory)
-                                             │
-                                             ▼
-                                    Markdown export (clipboard / download)
+Person A (browser capture)              Person B (report UI)
+────────────────────────────────────    ──────────────────────────────────────
+background.ts (service worker)          App.tsx
+  └─ listens for CAPTURE_TAB msg         └─ handleCapture() sends CAPTURE_TAB
+       └─ captureActiveTab()                  receives CaptureResponse
+            ├─ chrome.tabs.query()            └─ on success:
+            └─ chrome.scripting                    initReportFromContext(ctx)
+                 .executeScript()                  → BugReport state
+                                              └─ ReportEditor
+                                                   user edits all fields
+                                              └─ ExportPanel
+                                                   generateMarkdown(report)
+                                                   copyMarkdown() / downloadMarkdown()
 ```
 
-All data stays in the browser. Nothing is sent to an external server.
+## Shared Contract
+
+All shared types live in `src/types/`:
+
+```ts
+// src/types/bug-report.ts
+type CapturedContext = { url, title, selectedText, capturedAt }
+type BugReport       = { title, sourceUrl, summary, evidence,
+                         reproductionSteps, expectedBehavior, actualBehavior }
+
+// src/types/messages.ts
+type CaptureRequest  = { type: "CAPTURE_TAB" }
+type CaptureResponse = { ok: true; data: CapturedContext }
+                     | { ok: false; error: string }
+```
+
+## Component Responsibilities
+
+### `App.tsx` (shared — Person A scaffold, Person B adds below capture section)
+- Person A: Capture button → sends `CAPTURE_TAB` → handles response state.
+- Person B: On `captureState.status === "success"`, renders `ReportEditor` + `ExportPanel` in a tab layout below `CapturePreview`.
+
+### `reportInit.ts` (Person B)
+- `initReportFromContext(ctx)`: deterministic mapping, **no invented content**.
+- `emptyReport()`: blank report when no context available.
+- `validateReport(report)`: list of human-readable warnings for incomplete fields.
+- Exported mock contexts for testing.
+
+### `markdown.ts` (Person B)
+- `generateMarkdown(report)`: typed, handles empty fields, numbered steps.
+- `markdownFilename(report)`: safe slug from title.
+- `copyMarkdown(report)`: async, returns `{success, error?}` — **never silently fails**.
+- `downloadMarkdown(report)`: sync Blob download, returns `{success, error?}`.
+
+## CSS Strategy
+
+Person A's styles use classes like `.buglens-*`, `.capture-*`, `.error-*`.
+
+Person B's additions use the `bl-` prefix (e.g. `.bl-report-editor`, `.bl-tabs`, `.bl-btn`) and are appended at the bottom of `popup.css` under a clearly marked section header. This prevents any collision.
+
+Both sections share the same `:root` CSS variables defined by Person A.

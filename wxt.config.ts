@@ -20,7 +20,9 @@ export default defineConfig({
       // Grants temporary access to the CURRENT active tab only — no persistent
       // host permission is needed. Combined with "scripting" this is the narrowest
       // possible permission set for reading selected text.
-      "activeTab"
+      "activeTab",
+      // Required for Person B's "Copy Markdown" export action.
+      "clipboardWrite"
     ]
   }
 });
