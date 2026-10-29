@@ -118,3 +118,41 @@ Person A's styles use classes like `.buglens-*`, `.capture-*`, `.error-*`.
 Person B's additions use the `bl-` prefix (e.g. `.bl-report-editor`, `.bl-tabs`, `.bl-btn`) and are appended at the bottom of `popup.css` under a clearly marked section header. This prevents any collision.
 
 Both sections share the same `:root` CSS variables defined by Person A.
+
+---
+
+## Reproduce & Capture Architecture & Security Model
+
+The "Reproduce & Capture" feature allows QA testers to start a recording session, reproduce an issue on the page, and capture future uncaught JavaScript exceptions and unhandled promise rejections.
+
+### Security Boundaries & The Bridge Pattern
+
+1. **Why `world: "MAIN"` is required for listeners:**
+   Chrome extension content scripts execute in an **Isolated World** by default. Because error events are dispatched in the page's **Main World**, isolated content script listeners cannot see uncaught runtime exceptions from page scripts. Script injection with `world: "MAIN"` is required to attach the error handlers.
+
+2. **Why extension data is NEVER stored on `window`:**
+   Page scripts running in the Main World can inspect, modify, and tamper with `window` objects. BugLens strictly avoids storing session buffers or internal tokens on `window`.
+
+3. **Validated Bridge from Page World to Extension (Token-Isolated):**
+   - The Main World listener captures only native `ErrorEvent` and `PromiseRejectionEvent` properties.
+   - It emits a session-specific DOM `CustomEvent` on `document` with an independent channel name (`__buglens_event_ch_<channelId>__`). The secret `sessionToken` is never passed to or exposed in the Main World.
+   - The Isolated World content script receives the event via `document` and forwards it with the private `sessionToken` via `chrome.runtime.sendMessage`.
+   - The background worker validates sender tab identity (`_sender.tab.id === session.tabId`), session token, and serializes all writes through a bounded in-memory promise queue to avoid concurrency race conditions.
+   - Schema validation and sanitization via `validateAndSanitizeEvent`:
+     - Truncates messages to **300 characters**.
+     - Strips URL query strings (`?token=...`) and hash fragments (`#...`) to prevent credential leakage.
+     - Strips control characters.
+     - Enforces a hard cap of **20 events per session**.
+     - Drops malformed or untrusted payloads.
+
+4. **Session Lifecycle, Reload Invalidation & Cleanup:**
+   - Sessions auto-expire after **10 minutes** via timestamp comparison.
+   - Page navigation or reload on the target tab explicitly invalidates the session and alerts the user.
+   - Sessions and page listeners are cleanly removed upon:
+     - User clicking "Stop & Review Evidence" (context captured specifically from `session.tabId`)
+     - User clicking "Cancel Session"
+     - Tab navigation / page reload (`chrome.tabs.onUpdated`)
+     - Tab closure (`chrome.tabs.onRemoved`)
+
+5. **Review Gate Before Report Attachment:**
+   Captured events are presented in an interactive review screen (`SessionReview.tsx`). The QA tester explicitly selects which events to attach as evidence. Attached events are injected into the editable `evidence` field in `ReportEditor`, allowing manual review and redaction prior to Markdown export.

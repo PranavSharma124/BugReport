@@ -8,7 +8,9 @@ Capture URL, title, metadata, and user-selected text with one click, edit and en
 
 ## Features
 
-- **📸 One-Click Webpage Capture**: Instantly grabs active tab URL, page title, timestamp, browser environment, and user-selected text.
+- **📸 Dual Capture Modes**:
+  - **Instant Snapshot**: Instantly grabs active tab URL, page title, timestamp, and user-selected text.
+  - **Reproduce & Capture Session**: Start a recording session that survives popup closure, reproduce a bug on the page, automatically catch future unhandled JavaScript errors and promise rejections, review events in an interactive checklist, and attach relevant errors as evidence.
 - **📝 Structured Report Editor**:
   - Auto-seeded title with page context.
   - Expected vs. Actual behavior side-by-side comparison.
@@ -28,7 +30,7 @@ Capture URL, title, metadata, and user-selected text with one click, edit and en
 - **Framework**: [WXT](https://wxt.dev/) (Chrome Manifest V3)
 - **UI**: React 18, TypeScript
 - **Styling**: Vanilla CSS with dark/light responsive tokens (`bl-*` design system)
-- **Testing**: Vitest + JSDOM (59 unit tests)
+- **Testing**: Vitest + JSDOM (95 unit tests)
 - **Build**: Vite 5 (integrated via WXT)
 
 ---
@@ -88,7 +90,7 @@ Bundle size: ~164 kB total in `.output/chrome-mv3/`.
 |---------|-------------|
 | `npm run dev` | Run WXT development server with hot-reload |
 | `npm run build` | Compile optimized production extension to `.output/chrome-mv3/` |
-| `npm test` | Run Vitest unit tests (59 tests across 3 suites) |
+| `npm test` | Run Vitest unit tests (95 tests across 5 suites) |
 | `npm run test:watch` | Run tests in interactive watch mode |
 | `npm run type-check` | Validate TypeScript types (`tsc --noEmit`) |
 | `npm run lint` | Run ESLint checks |
@@ -107,30 +109,34 @@ BugReport/
 │   └── testing.md          # Test suite documentation & manual test matrix
 ├── src/
 │   ├── entrypoints/        # WXT entrypoints
-│   │   ├── background.ts   # Person A — MV3 Service worker (tab querying & script injection)
+│   │   ├── background.ts   # MV3 Service worker (tab querying, session orchestration & listeners)
 │   │   └── popup/          # Extension popup HTML entrypoint & React mount
 │   ├── popup/              # Popup UI application
 │   │   ├── components/     # React UI components
-│   │   │   ├── CaptureButton.tsx       # Person A — Capture trigger button
-│   │   │   ├── CapturePreview.tsx      # Person A — Captured context banner
-│   │   │   ├── ErrorBanner.tsx         # Person A — User-facing error messaging
-│   │   │   ├── ExportPanel.tsx         # Person B — Copy / Download action buttons & preview
-│   │   │   ├── ReportEditor.tsx        # Person B — Bug report form fields & controls
-│   │   │   ├── StepsEditor.tsx         # Person B — Dynamic reproduction steps list
-│   │   │   ├── Toast.tsx               # Person B — Feedback notifications
-│   │   │   └── ValidationWarnings.tsx  # Person B — Missing field hints
-│   │   ├── App.tsx         # Main popup orchestrator (capture state + report workflow)
+│   │   │   ├── CaptureButton.tsx       # Instant capture trigger button
+│   │   │   ├── CapturePreview.tsx      # Captured context banner
+│   │   │   ├── ErrorBanner.tsx         # User-facing error & invalidation messaging
+│   │   │   ├── ExportPanel.tsx         # Copy / Download action buttons & preview
+│   │   │   ├── ReportEditor.tsx        # Bug report form fields & controls
+│   │   │   ├── SessionReview.tsx       # Reproduce & capture evidence review gate
+│   │   │   ├── StepsEditor.tsx         # Dynamic reproduction steps list
+│   │   │   ├── Toast.tsx               # Feedback notifications
+│   │   │   └── ValidationWarnings.tsx  # Missing field hints
+│   │   ├── App.tsx         # Main popup orchestrator (capture state + session + report workflow)
 │   │   └── popup.css       # Unified styling tokens & layouts
-│   ├── lib/                # Pure report generation & export logic (Person B)
+│   ├── lib/                # Pure report generation & export logic
 │   │   ├── markdown.ts     # Markdown serialization, clipboard copy & file download
 │   │   ├── reportInit.ts   # Report factory, validation & mock context
 │   │   └── __tests__/      # Vitest suites for reportInit & markdown
-│   ├── utils/              # Browser capture helpers (Person A)
-│   │   ├── capture.ts      # Active tab context extractor
-│   │   └── __tests__/      # Capture unit tests
+│   ├── utils/              # Browser capture & session helpers
+│   │   ├── capture.ts      # Active tab context extractor (instant & by ID)
+│   │   ├── sanitize.ts     # Error sanitization, validation & bounds enforcement
+│   │   ├── session.ts      # Reproduce & capture session lifecycle & serialization queue
+│   │   └── __tests__/      # Vitest suites for capture, session, and sanitize
 │   └── types/              # Shared TypeScript contracts
 │       ├── bug-report.ts   # BugReport & CapturedContext models
-│       └── messages.ts     # Internal messaging protocol
+│       ├── messages.ts     # Internal extension messaging protocol
+│       └── session.ts      # CaptureSession & error event types
 ├── package.json
 ├── tsconfig.json
 └── wxt.config.ts           # WXT & Chrome manifest configuration
@@ -145,9 +151,10 @@ BugLens strictly adheres to the principle of least privilege in Chrome Manifest 
 | Permission | Purpose |
 |------------|---------|
 | `tabs` | Retrieve the active tab's URL and title for environment context |
-| `scripting` | Execute a lightweight one-shot script to retrieve `window.getSelection()` |
+| `scripting` | Execute lightweight scripts in isolated/main worlds to read selection and capture uncaught errors |
 | `activeTab` | Restrict `scripting` strictly to the user-invoked tab (no broad host permissions) |
 | `clipboardWrite` | Allow copying the generated Markdown report to system clipboard |
+| `storage` | Store active capture session state across service worker idle sleep |
 
 No persistent host access (`<all_urls>`) is requested. All operations run locally within the extension.
 
@@ -155,15 +162,17 @@ No persistent host access (`<all_urls>`) is requested. All operations run locall
 
 ## Testing
 
-BugLens includes 59 automated unit tests verifying core logic:
+BugLens includes 95 automated unit tests verifying core logic:
 
 ```bash
 npm test
 ```
 
-- **`src/lib/__tests__/reportInit.test.ts`** (18 tests): Default report initialization, severity defaults, title formulation, validation warning rules.
+- **`src/utils/__tests__/capture.test.ts`** (25 tests): Tab context querying, `captureTabById`, error boundaries, empty selection edge cases.
+- **`src/utils/__tests__/session.test.ts`** (15 tests): Session start/stop lifecycle, 20-event bounding, reload invalidation, expired-session restart, sender tab validation, concurrent burst serialization queue.
+- **`src/utils/__tests__/sanitize.test.ts`** (14 tests): Error message truncation (300 chars), source URL sanitization, query/hash removal, bridge payload validation.
+- **`src/lib/__tests__/reportInit.test.ts`** (22 tests): Default report initialization, severity defaults, session error formatting, validation rules.
 - **`src/lib/__tests__/markdown.test.ts`** (19 tests): Markdown schema formatting, section omission rules, clipboard integration, file download triggers.
-- **`src/utils/__tests__/capture.test.ts`** (22 tests): Tab context querying, error boundaries, empty selection edge cases.
 
 ---
 

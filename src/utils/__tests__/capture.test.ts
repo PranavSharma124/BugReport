@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { isRestrictedUrl, captureActiveTab } from "../capture";
+import { isRestrictedUrl, captureActiveTab, captureTabById } from "../capture";
 
 // ─── Chrome API Mock ──────────────────────────────────────────────────────────
 
@@ -30,6 +30,7 @@ function buildChromeMock(overrides?: {
   return {
     tabs: {
       query: vi.fn(),
+      get: vi.fn(),
       ...overrides?.tabs,
     },
     scripting: {
@@ -237,5 +238,51 @@ describe("captureActiveTab", () => {
     expect(Object.keys(ctx).sort()).toEqual(
       ["capturedAt", "selectedText", "title", "url"].sort()
     );
+  });
+});
+
+describe("captureTabById", () => {
+  let chromeMock: ReturnType<typeof buildChromeMock>;
+
+  beforeEach(() => {
+    chromeMock = buildChromeMock();
+    // @ts-expect-error Mocking global chrome
+    global.chrome = chromeMock;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("captures context from a specific tab by ID", async () => {
+    chromeMock.tabs.get = vi.fn().mockResolvedValue({
+      id: 42,
+      url: "https://example.com/item/42",
+      title: "Item 42",
+    });
+    chromeMock.scripting.executeScript = vi.fn().mockResolvedValue([
+      { result: "Captured error text" },
+    ]);
+
+    const ctx = await captureTabById(42);
+    expect(ctx.url).toBe("https://example.com/item/42");
+    expect(ctx.title).toBe("Item 42");
+    expect(ctx.selectedText).toBe("Captured error text");
+  });
+
+  it("throws when target tab is on a restricted URL", async () => {
+    chromeMock.tabs.get = vi.fn().mockResolvedValue({
+      id: 43,
+      url: "chrome://settings",
+      title: "Settings",
+    });
+
+    await expect(captureTabById(43)).rejects.toThrow("BugLens cannot capture from this page type");
+  });
+
+  it("throws when target tab is not found", async () => {
+    chromeMock.tabs.get = vi.fn().mockRejectedValue(new Error("No tab with id: 999"));
+
+    await expect(captureTabById(999)).rejects.toThrow("Target tab 999 not found");
   });
 });

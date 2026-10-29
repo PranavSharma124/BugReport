@@ -22,7 +22,9 @@ export default defineConfig({
       // possible permission set for reading selected text.
       "activeTab",
       // Required for Person B's "Copy Markdown" export action.
-      "clipboardWrite"
+      "clipboardWrite",
+      // Required to persist active "Reproduce & Capture" session state across service worker sleep.
+      "storage"
     ]
   }
 });

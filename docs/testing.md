@@ -20,18 +20,20 @@ npm run build
 
 ## Automated Test Results (last run: 2026-10-29)
 
-**All 59 unit tests pass across 3 test files.**
+**All 95 unit tests pass across 5 test files.**
 
 ```
-✓ src/utils/__tests__/capture.test.ts    (22 tests)
-✓ src/lib/__tests__/reportInit.test.ts   (18 tests)
+✓ src/utils/__tests__/capture.test.ts    (25 tests)
+✓ src/utils/__tests__/session.test.ts    (15 tests)
+✓ src/utils/__tests__/sanitize.test.ts   (14 tests)
+✓ src/lib/__tests__/reportInit.test.ts   (22 tests)
 ✓ src/lib/__tests__/markdown.test.ts     (19 tests)
 
-Test Files  3 passed (3)
-     Tests  59 passed (59)
+Test Files  5 passed (5)
+     Tests  95 passed (95)
 ```
 
-### Person A — Capture Tests (`src/utils/__tests__/capture.test.ts`) — 22 tests ✅
+### 1. Browser Capture Tests (`src/utils/__tests__/capture.test.ts`) — 25 tests ✅
 
 | Test | Status |
 |------|--------|
@@ -57,55 +59,77 @@ Test Files  3 passed (3)
 | `captureActiveTab` throws when tab URL is missing | ✅ PASSED |
 | `captureActiveTab` silently treats scripting failure as empty selection | ✅ PASSED |
 | `captureActiveTab` throws when chrome.tabs.query rejects | ✅ PASSED |
+| `captureTabById` captures context from a specific tab by ID | ✅ PASSED |
+| `captureTabById` throws when target tab is on a restricted URL | ✅ PASSED |
+| `captureTabById` throws when target tab is not found | ✅ PASSED |
 
-### Person B — Report Init Tests (`src/lib/__tests__/reportInit.test.ts`) — 18 tests ✅
+### 2. Session Lifecycle Tests (`src/utils/__tests__/session.test.ts`) — 15 tests ✅
+
+| Test | Status |
+|------|--------|
+| `startSession` starts a session on a valid HTTPS tab | ✅ PASSED |
+| `startSession` throws when attempting to start on a restricted page | ✅ PASSED |
+| `startSession` is idempotent when starting on the same active tab | ✅ PASSED |
+| `getSessionStatus` returns active session status accurately | ✅ PASSED |
+| `recordSessionEvent` records valid events and enforces the 20-event limit | ✅ PASSED |
+| `recordSessionEvent` rejects invalid session tokens | ✅ PASSED |
+| `isSessionExpired` correctly identifies expired sessions (> 10 minutes) | ✅ PASSED |
+| `stopSession` stops session, cleans up, and returns context with events | ✅ PASSED |
+| `cancelSession` cancels and resets session state cleanly | ✅ PASSED |
+| `cleanSession` does not wipe active session when called for unrelated tab | ✅ PASSED |
+| `invalidateSession` invalidates active session and records reason on reload | ✅ PASSED |
+| `startSession` cleans up expired session when starting new session on same tab | ✅ PASSED |
+| `recordSessionEvent` rejects events if sender tab ID does not match session | ✅ PASSED |
+| `stopSession` captures context from session.tabId even if another tab is focused | ✅ PASSED |
+| `recordSessionEvent` handles 10 concurrent event recordings without drops or duplicates | ✅ PASSED |
+| `recordSessionEvent` enforces 20-event maximum under concurrent burst | ✅ PASSED |
+
+### 3. Sanitization & Security Tests (`src/utils/__tests__/sanitize.test.ts`) — 14 tests ✅
+
+| Test | Status |
+|------|--------|
+| `sanitizeErrorMessage` preserves regular error messages under 300 chars | ✅ PASSED |
+| `sanitizeErrorMessage` truncates error messages exceeding 300 chars | ✅ PASSED |
+| `sanitizeErrorMessage` handles null and undefined gracefully | ✅ PASSED |
+| `sanitizeErrorMessage` extracts message property from error-like objects | ✅ PASSED |
+| `sanitizeErrorMessage` strips control characters | ✅ PASSED |
+| `sanitizeSourceUrl` strips query strings and hash fragments | ✅ PASSED |
+| `sanitizeSourceUrl` handles relative pathnames and strips query strings | ✅ PASSED |
+| `sanitizeSourceUrl` safely sanitizes data: and blob: URLs | ✅ PASSED |
+| `sanitizeSourceUrl` returns undefined for invalid or empty inputs | ✅ PASSED |
+| `sanitizeLineNumber` returns floor integer for valid numbers | ✅ PASSED |
+| `sanitizeLineNumber` returns undefined for negative numbers, NaN, or non-numbers | ✅ PASSED |
+| `validateAndSanitizeEvent` validates a well-formed error event | ✅ PASSED |
+| `validateAndSanitizeEvent` validates a well-formed unhandledrejection event | ✅ PASSED |
+| `validateAndSanitizeEvent` rejects malformed payloads and non-objects | ✅ PASSED |
+
+### 4. Report Initialization & Formatting (`src/lib/__tests__/reportInit.test.ts`) — 22 tests ✅
 
 | Test | Status |
 |------|--------|
 | `initReportFromContext` populates title from page title | ✅ PASSED |
 | `initReportFromContext` populates sourceUrl from context URL | ✅ PASSED |
 | `initReportFromContext` populates evidence with `[Captured from page]` prefix | ✅ PASSED |
-| `initReportFromContext` leaves evidence **blank** when `selectedText` is `""` | ✅ PASSED |
-| `initReportFromContext` leaves summary blank — never invented | ✅ PASSED |
-| `initReportFromContext` leaves expectedBehavior blank — never invented | ✅ PASSED |
-| `initReportFromContext` leaves actualBehavior blank — never invented | ✅ PASSED |
-| `initReportFromContext` leaves reproductionSteps empty — never invented | ✅ PASSED |
-| `initReportFromContext` handles minimal context (all fields empty) | ✅ PASSED |
-| `emptyReport` returns all string fields as `""` | ✅ PASSED |
-| `emptyReport` returns `reproductionSteps: []` | ✅ PASSED |
-| `validateReport` returns no warnings for a complete report | ✅ PASSED |
-| `validateReport` warns when title is missing | ✅ PASSED |
-| `validateReport` warns when sourceUrl is missing | ✅ PASSED |
-| `validateReport` warns when summary is missing | ✅ PASSED |
-| `validateReport` warns when actualBehavior is missing | ✅ PASSED |
-| `validateReport` warns when expectedBehavior is missing | ✅ PASSED |
-| `validateReport` warns when reproductionSteps is empty | ✅ PASSED |
+| `initReportFromContext` leaves evidence blank when `selectedText` is `""` | ✅ PASSED |
+| `initReportFromContext` leaves summary, expected, actual blank | ✅ PASSED |
+| `initReportFromContext` leaves reproductionSteps empty | ✅ PASSED |
+| `formatSessionErrors` formats error events into numbered evidence lines | ✅ PASSED |
+| `formatSessionErrors` returns empty string when no errors provided | ✅ PASSED |
+| `initReportWithSessionErrors` attaches session errors to evidence | ✅ PASSED |
+| `initReportWithSessionErrors` combines selected text and session errors cleanly | ✅ PASSED |
+| `emptyReport` returns all string fields as `""` and steps as `[]` | ✅ PASSED |
+| `validateReport` returns warnings for missing required fields | ✅ PASSED |
 
-### Person B — Markdown Tests (`src/lib/__tests__/markdown.test.ts`) — 19 tests ✅
-
-> Uses `// @vitest-environment jsdom` annotation for DOM API access.
+### 5. Markdown Export Tests (`src/lib/__tests__/markdown.test.ts`) — 19 tests ✅
 
 | Test | Status |
 |------|--------|
-| `generateMarkdown` includes heading with bug title | ✅ PASSED |
-| `generateMarkdown` includes source URL | ✅ PASSED |
-| `generateMarkdown` includes summary | ✅ PASSED |
-| `generateMarkdown` numbers reproduction steps correctly (1. 2. 3.) | ✅ PASSED |
-| `generateMarkdown` includes expected behavior | ✅ PASSED |
-| `generateMarkdown` includes actual behavior | ✅ PASSED |
-| `generateMarkdown` handles empty fields with `_Not provided_` placeholder | ✅ PASSED |
-| `generateMarkdown` reflects **edited** report — not original captured context | ✅ PASSED |
-| `generateMarkdown` confirms deleted content is **absent** from export | ✅ PASSED |
-| `generateMarkdown` includes `review before sharing` footer | ✅ PASSED |
-| `markdownFilename` slugifies the bug title | ✅ PASSED |
-| `markdownFilename` falls back to `bug-report.md` for empty title | ✅ PASSED |
-| `markdownFilename` truncates titles over 60 chars | ✅ PASSED |
-| `copyMarkdown` returns `{success: true}` when clipboard write succeeds | ✅ PASSED |
-| `copyMarkdown` calls `clipboard.writeText` with the generated markdown | ✅ PASSED |
-| `copyMarkdown` returns `{success: false, error}` when clipboard throws | ✅ PASSED |
-| `copyMarkdown` does **not** claim success on clipboard failure | ✅ PASSED |
-| `downloadMarkdown` returns `{success: true}` | ✅ PASSED |
-| `downloadMarkdown` creates a Blob and triggers anchor click | ✅ PASSED |
+| `generateMarkdown` formats heading, URL, summary, steps, expected, actual | ✅ PASSED |
+| `generateMarkdown` handles empty fields with placeholders | ✅ PASSED |
+| `generateMarkdown` reflects edited report state | ✅ PASSED |
+| `markdownFilename` slugifies title and falls back gracefully | ✅ PASSED |
+| `copyMarkdown` copies to clipboard and handles errors | ✅ PASSED |
+| `downloadMarkdown` creates Blob and triggers download | ✅ PASSED |
 
 ---
 
@@ -113,7 +137,7 @@ Test Files  3 passed (3)
 
 - **Type-Check:** `npm run type-check` (`tsc --noEmit`) → **✅ Zero errors**
 - **Linter:** `npm run lint` (`eslint src --ext .ts,.tsx`) → **✅ Zero errors**
-- **Production Build:** `npm run build` (`wxt build`) → **✅ Built in ~400ms** → `.output/chrome-mv3/`
+- **Production Build:** `npm run build` (`wxt build`) → **✅ Built in ~420ms** → `.output/chrome-mv3/` (182.18 kB)
 
 ---
 
@@ -135,8 +159,6 @@ These require loading the unpacked extension in Chrome (`chrome://extensions` �
 
 ### Integrated End-to-End Workflow Manual Tests (Capture + Report Editor + Export)
 
-These scenarios verify the combined product end-to-end.
-
 | # | Test Scenario | Steps & Verification | Status |
 |---|--------------|----------------------|--------|
 | M1 | Capture triggers editor | Click "Capture This Page" on any HTTPS page → `CapturePreview` and report editor section with tabs render | ✅ **PASS** (observed 2026-10-29) |
@@ -151,3 +173,15 @@ These scenarios verify the combined product end-to-end.
 | M10 | Privacy verification | Confirm exported file contains only current report values and no original unedited captured context | ✅ **PASS** (observed 2026-10-29) |
 | M11 | Validation warnings | Leave title or summary empty → switch to Export tab → warning list displays incomplete fields | ⏳ **NOT RUN** |
 | M12 | Capture reset | Click "↺ New" in CapturePreview → capture state resets to idle, editor disappears, "Capture" button visible | ⏳ **NOT RUN** |
+
+### Reproduce & Capture Manual Tests
+
+| # | Test Scenario | Steps & Verification | Status |
+|---|--------------|----------------------|--------|
+| RC-1 | Start Session | Click "Start Reproduce & Capture Session" → UI shows active recording banner with target page info | ⏳ **NOT RUN** |
+| RC-2 | Popup Persistence | Start session, close popup, trigger `console.error` / `throw new Error()` on page, re-open popup → error counter reflects captured error | ⏳ **NOT RUN** |
+| RC-3 | Review Screen & Selection | Click "Stop & Review Evidence" → review screen displays captured error with tag, timestamp, and message; tester can select/deselect errors | ⏳ **NOT RUN** |
+| RC-4 | Attach Selected to Report | Click "Attach Selected & Open Report" → report editor opens; `evidence` field contains formatted console error with warning badge | ⏳ **NOT RUN** |
+| RC-5 | Deselection Excludes Error | Uncheck an error on review screen and click attach → excluded error does not appear in `evidence` | ⏳ **NOT RUN** |
+| RC-6 | Cancel Session | Click "Cancel Session" during recording → session resets cleanly to idle mode without error | ⏳ **NOT RUN** |
+| RC-7 | Tab Navigation Reset | Start session on page, navigate tab to another URL → session automatically resets | ⏳ **NOT RUN** |

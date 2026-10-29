@@ -3,10 +3,13 @@ import {
   initReportFromContext,
   emptyReport,
   validateReport,
+  formatSessionErrors,
+  initReportWithSessionErrors,
   MOCK_CONTEXT_FULL,
   MOCK_CONTEXT_NO_SELECTION,
   MOCK_CONTEXT_MINIMAL,
 } from "../reportInit";
+import type { CapturedErrorEvent } from "../../types/session";
 
 // ── initReportFromContext ────────────────────────────────────────────────────
 
@@ -136,5 +139,50 @@ describe("validateReport", () => {
       actualBehavior: "",
     });
     expect(warnings.length).toBeGreaterThan(3);
+  });
+});
+
+// ── formatSessionErrors & initReportWithSessionErrors ─────────────────────────
+
+describe("formatSessionErrors & initReportWithSessionErrors", () => {
+  const sampleErrors: CapturedErrorEvent[] = [
+    {
+      id: "ev_1",
+      type: "error",
+      message: "Uncaught TypeError: Cannot read property of undefined",
+      source: "https://example.com/bundle.js",
+      lineno: 124,
+      colno: 12,
+      timestamp: "2026-10-29T10:00:00.000Z",
+    },
+    {
+      id: "ev_2",
+      type: "unhandledrejection",
+      message: "Failed to fetch /api/checkout",
+      timestamp: "2026-10-29T10:00:01.000Z",
+    },
+  ];
+
+  it("formats error events into readable numbered evidence lines", () => {
+    const formatted = formatSessionErrors(sampleErrors);
+    expect(formatted).toContain("[Captured Console Errors (2)]");
+    expect(formatted).toContain("1. [ERROR] Uncaught TypeError: Cannot read property of undefined (https://example.com/bundle.js:124)");
+    expect(formatted).toContain("2. [UNHANDLEDREJECTION] Failed to fetch /api/checkout");
+  });
+
+  it("returns empty string when no errors are provided", () => {
+    expect(formatSessionErrors([])).toBe("");
+  });
+
+  it("attaches session errors to base report evidence without selected text", () => {
+    const report = initReportWithSessionErrors(MOCK_CONTEXT_NO_SELECTION, sampleErrors);
+    expect(report.evidence).toContain("[Captured Console Errors (2)]");
+    expect(report.evidence).not.toContain("[Captured from page]");
+  });
+
+  it("combines selected text and session errors cleanly in evidence", () => {
+    const report = initReportWithSessionErrors(MOCK_CONTEXT_FULL, sampleErrors);
+    expect(report.evidence).toContain("[Captured from page]");
+    expect(report.evidence).toContain("[Captured Console Errors (2)]");
   });
 });

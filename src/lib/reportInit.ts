@@ -1,4 +1,39 @@
 import type { CapturedContext, BugReport } from "../types/bug-report";
+import type { CapturedErrorEvent } from "../types/session";
+
+/**
+ * Formats a list of selected captured error events into structured markdown evidence text.
+ */
+export function formatSessionErrors(errors: CapturedErrorEvent[]): string {
+  if (errors.length === 0) return "";
+  const lines: string[] = [
+    `[Captured Console Errors (${errors.length})]`,
+    ...errors.map((err, i) => {
+      const loc = err.source ? ` (${err.source}:${err.lineno ?? 0})` : "";
+      return `${i + 1}. [${err.type.toUpperCase()}] ${err.message}${loc}`;
+    }),
+  ];
+  return lines.join("\n");
+}
+
+/**
+ * Initialize a BugReport from CapturedContext and optionally selected session errors.
+ */
+export function initReportWithSessionErrors(
+  ctx: CapturedContext,
+  selectedErrors: CapturedErrorEvent[] = []
+): BugReport {
+  const base = initReportFromContext(ctx);
+  const formattedErrors = formatSessionErrors(selectedErrors);
+
+  if (formattedErrors) {
+    base.evidence = base.evidence
+      ? `${base.evidence}\n\n${formattedErrors}`
+      : formattedErrors;
+  }
+
+  return base;
+}
 
 /**
  * Initialize a BugReport from a CapturedContext.

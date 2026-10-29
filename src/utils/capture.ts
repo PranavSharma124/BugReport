@@ -79,7 +79,70 @@ async function getSelectedText(tabId: number, tabUrl: string): Promise<string> {
   }
 }
 
+/**
+ * Extracts and validates CapturedContext from an existing chrome.tabs.Tab object.
+ */
+async function extractTabContext(tab: chrome.tabs.Tab): Promise<CapturedContext> {
+  const url = tab.url ?? "";
+  const title = tab.title ?? "";
+
+  if (!url) {
+    throw new Error(
+      "Could not read the active tab's URL. The page may still be loading."
+    );
+  }
+
+  if (isRestrictedUrl(url)) {
+    throw new Error(
+      `BugLens cannot capture from this page type (${new URL(url).protocol}). ` +
+        "Please navigate to a regular web page (http:// or https://) and try again."
+    );
+  }
+
+  // Retrieve selected text (best-effort; never blocks capture).
+  const selectedText = tab.id != null ? await getSelectedText(tab.id, url) : "";
+
+  const capturedAt = new Date().toISOString();
+
+  return {
+    url,
+    title,
+    selectedText,
+    capturedAt,
+  };
+}
+
 // ─── Public API ──────────────────────────────────────────────────────────────
+
+/**
+ * Captures context from a specific tab by its ID.
+ *
+ * @throws {Error} When the tab cannot be found or accessed.
+ * @throws {Error} When the tab is on a restricted URL scheme.
+ */
+export async function captureTabById(tabId: number): Promise<CapturedContext> {
+  if (typeof chrome !== "undefined" && chrome.tabs?.get) {
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      if (tab) {
+        return await extractTabContext(tab);
+      }
+    } catch (err) {
+      throw new Error(`Target tab ${tabId} not found: ${String(err)}`);
+    }
+  }
+
+  // Fallback if tabs.get is unavailable: search query
+  if (typeof chrome !== "undefined" && chrome.tabs?.query) {
+    const tabs = await chrome.tabs.query({});
+    const tab = tabs.find((t) => t.id === tabId);
+    if (tab) {
+      return await extractTabContext(tab);
+    }
+  }
+
+  throw new Error(`Target tab ${tabId} not found.`);
+}
 
 /**
  * Captures the active tab's URL, title, selected text, and a UTC timestamp.
@@ -110,35 +173,5 @@ export async function captureActiveTab(): Promise<CapturedContext> {
     );
   }
 
-  // Step 2: Validate URL availability and scheme.
-  // tab.url requires the "tabs" permission, which we declare in wxt.config.ts.
-  const url = tab.url ?? "";
-  const title = tab.title ?? "";
-
-  if (!url) {
-    throw new Error(
-      "Could not read the active tab's URL. The page may still be loading."
-    );
-  }
-
-  if (isRestrictedUrl(url)) {
-    throw new Error(
-      `BugLens cannot capture from this page type (${new URL(url).protocol}). ` +
-        "Please navigate to a regular web page (http:// or https://) and try again."
-    );
-  }
-
-  // Step 3: Retrieve selected text (best-effort; never blocks capture).
-  const selectedText = await getSelectedText(tab.id, url);
-
-  // Step 4: Record a UTC ISO 8601 timestamp at the moment of capture.
-  const capturedAt = new Date().toISOString();
-
-  // Step 5: Assemble and return the CapturedContext.
-  return {
-    url,
-    title,
-    selectedText,
-    capturedAt,
-  };
+  return extractTabContext(tab);
 }

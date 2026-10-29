@@ -353,3 +353,108 @@ Verify the combined codebase after Person B's report-workflow PR (#1, commit `63
   - MT-7 (`file://` page): ⏳ **NOT RUN**
   - M11 (Validation warnings UI for incomplete fields): ⏳ **NOT RUN**
   - M12 (Capture reset via "New" button): ⏳ **NOT RUN**
+
+---
+
+## Reproduce & Capture MVP Implementation — 2026-10-29
+
+### Task
+
+Implement the "Reproduce & Capture" MVP feature:
+- Allow a QA tester to explicitly start an evidence-capture session on the current webpage.
+- Catch future uncaught JavaScript exceptions and unhandled promise rejections on the page.
+- Stop the session, review captured events in an interactive checklist, select relevant errors, and attach them to the editable report evidence.
+- Preserve the existing instant-capture (`CAPTURE_TAB`) flow and contracts intact.
+- Enforce strict security boundaries, least privilege, and sanitize all captured data.
+
+### Security Assessment & Architecture Decisions
+
+1. **Main World vs. Isolated World Bridge:**
+   - Chrome content scripts run in an Isolated World by default and cannot listen to uncaught errors thrown by page scripts in the Main World.
+   - Storing session data on `window.__BUGLENS_SESSION__` exposes internal extension state to page scripts (tampering / injection risk).
+   - **Implemented Pattern:** Ephemeral Main World trap captures error/rejection events and emits a session-scoped DOM `CustomEvent`. The Isolated World bridge receiver intercepts the event, validates it with a strict schema, and sends it to the background service worker. The event buffer is stored exclusively in extension-controlled storage (`chrome.storage.session`), never on `window`.
+
+2. **Data Sanitization & Limits:**
+   - Error messages are truncated to **300 characters** with control characters stripped.
+   - Script source URLs are stripped of query parameters (`?token=...`) and hash fragments (`#...`) to prevent credential leakage.
+   - No stack traces, DOM content, input values, cookies, or network payloads are captured.
+   - Event buffer is strictly bounded to **20 events** maximum per session.
+
+3. **Session Lifecycle & Cleanup:**
+   - Sessions auto-expire after **10 minutes** via timestamp comparison (no dependence on sleeping MV3 service worker `setTimeout`).
+   - Listeners and session state are cleaned up upon: stop, cancellation, tab reload/navigation (`chrome.tabs.onUpdated`), or tab closure (`chrome.tabs.onRemoved`).
+
+4. **Least-Privilege Permissions:**
+   - Added `"storage"` permission to `wxt.config.ts` solely to support `chrome.storage.session` for session persistence across service worker sleep.
+   - Zero broad host permissions (`<all_urls>`), zero `debugger`, zero `webRequest`, zero remote servers.
+
+### Files Created & Modified
+
+| File | Status | Description |
+|---|---|---|
+| `src/types/session.ts` | Created | `CapturedErrorEvent`, `CaptureSession`, `SessionSummary`, `StopSessionResult` |
+| `src/types/messages.ts` | Modified | Added session requests/responses; preserved `CAPTURE_TAB` contract |
+| `src/utils/sanitize.ts` | Created | Truncation, query string stripping, bridge payload validation |
+| `src/utils/session.ts` | Created | Session lifecycle, 10-min expiry, event limits, injection & cleanup |
+| `src/entrypoints/background.ts` | Modified | Handlers for session messages and tab navigation/closure listeners |
+| `src/lib/reportInit.ts` | Modified | Added `formatSessionErrors` and `initReportWithSessionErrors` |
+| `src/popup/components/SessionReview.tsx` | Created | Interactive review checklist for captured events |
+| `src/popup/components/ReportEditor.tsx` | Modified | Updated captured evidence detector to support console error badges |
+| `src/popup/App.tsx` | Modified | Integrated session lifecycle, active recording banner, and review gate |
+| `src/popup/popup.css` | Modified | Styles for recording indicator, pulse animation, and review list |
+| `wxt.config.ts` | Modified | Added `"storage"` permission |
+| `src/utils/__tests__/sanitize.test.ts` | Created | 14 tests for message truncation, URL query stripping, validation |
+| `src/utils/__tests__/session.test.ts` | Created | 8 tests for session start/stop, 20-event limit, expiry, idempotence |
+| `src/lib/__tests__/reportInit.test.ts` | Modified | Added 4 tests for session error formatting and evidence combination |
+| `README.md` | Modified | Updated features, permissions, and test documentation |
+| `docs/architecture.md` | Modified | Documented bridge pattern, security model, and lifecycle |
+| `docs/testing.md` | Modified | Added 85-test suite breakdown and RC-1 to RC-7 manual test matrix |
+
+### Verification Results
+
+| Command | Exit Code | Result |
+|---|---|---|
+| `npm run type-check` | `0` | **✅ Zero errors** (`tsc --noEmit`) |
+| `npm test` | `0` | **✅ 85 / 85 passed** across 5 test files in 368ms |
+| `npm run lint` | `0` | **✅ Zero errors, zero warnings** |
+| `npm run build` | `0` | **✅ Built in ~420ms** → `.output/chrome-mv3/` (182.18 kB) |
+
+### Manual Verification Status
+
+- Browser capture tests MT-1 through MT-4: ✅ **PASS** (previously observed in Chrome).
+- Integrated end-to-end report workflow tests M1 through M10: ✅ **PASS** (previously observed in Chrome).
+- Reproduce & Capture manual test matrix RC-1 through RC-7: ⏳ **NOT RUN** (requires manual verification in Chrome).
+
+---
+
+## Phase 8: Reliability Audit & Pre-Demo Hardening (F-01 through F-05)
+
+**Date:** 2026-10-29  
+**Trigger:** Pre-demonstration senior QA audit identifying failure modes in session lifecycle and bridge security.
+
+### Fixes Implemented
+
+1. **F-01: Page Reload & Navigation Invalidation**
+   - Active sessions on target tabs that undergo reload (`Cmd+R`) or navigation are explicitly invalidated via `invalidateSession`.
+   - An invalidation notice is persisted and surfaced in `App.tsx` via `ErrorBanner`, preventing the UI from falsely claiming capture is running.
+2. **F-02: Expired Session Restart & Listener Re-registration**
+   - Prior/expired sessions on the same tab are fully cleaned before a new session starts.
+   - `mainWorldErrorTrap` and `isolatedWorldBridgeReceiver` cleanly reset stale listener bindings on re-injection.
+3. **F-03: Event Recording Concurrency Queue**
+   - Implemented `recordQueueTail` promise serialization in `src/utils/session.ts` with a bounded queue (`MAX_PENDING_QUEUE = 30`).
+   - Prevents asynchronous read-modify-write storage collisions during error bursts while strictly enforcing the 20-event cap.
+4. **F-04: Report Target Tab Binding**
+   - Added `captureTabById(tabId)` in `src/utils/capture.ts`.
+   - `stopSession()` binds context capture specifically to `session.tabId` rather than whichever tab happens to be focused.
+5. **F-05: Token Isolation & Sender Tab Validation**
+   - `sessionToken` is decoupled from the DOM event channel name and kept strictly private to the isolated world and background.
+   - `RECORD_SESSION_EVENT` verifies that the sender tab ID matches `session.tabId`.
+
+### Updated Verification Results
+
+| Command | Exit Code | Result |
+|---|---|---|
+| `npm run type-check` | `0` | **✅ Zero errors** (`tsc --noEmit`) |
+| `npm test` | `0` | **✅ 95 / 95 passed** across 5 test files in ~520ms |
+| `npm run lint` | `0` | **✅ Zero errors, zero warnings** |
+| `npm run build` | `0` | **✅ Built in ~490ms** → `.output/chrome-mv3/` (186.47 kB) |

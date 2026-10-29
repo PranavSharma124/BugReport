@@ -557,3 +557,294 @@ body {
   from { opacity: 0; transform: translateX(-50%) translateY(6px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+
+/* ── Reproduce & Capture Session Styles ── */
+
+.bl-capture-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bl-mode-divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.bl-mode-divider::before,
+.bl-mode-divider::after {
+  content: "";
+  flex: 1;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.bl-mode-divider span {
+  padding: 0 8px;
+}
+
+.bl-btn--record {
+  background: #2d1e2f;
+  border: 1px solid #c25;
+  color: #ff99aa;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 13.5px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bl-btn--record:hover:not(:disabled) {
+  background: #3e223f;
+  border-color: #ff4d6d;
+  color: #ffc2cc;
+}
+
+.bl-record-icon {
+  font-size: 11px;
+}
+
+.bl-mode-help {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  text-align: center;
+  margin-top: 2px;
+}
+
+/* Active Recording Banner */
+.bl-session-active {
+  background: #2a1b28;
+  border: 1px solid #d43f5e;
+  border-radius: var(--radius);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bl-session-active__badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #ff8099;
+  font-size: 13px;
+}
+
+.bl-pulse-dot {
+  width: 10px;
+  height: 10px;
+  background-color: #ff4d6d;
+  border-radius: 50%;
+  display: inline-block;
+  animation: bl-pulse 1.4s infinite ease-in-out;
+}
+
+@keyframes bl-pulse {
+  0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(255, 77, 109, 0.7); }
+  70% { transform: scale(1.1); box-shadow: 0 0 0 6px rgba(255, 77, 109, 0); }
+  100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(255, 77, 109, 0); }
+}
+
+.bl-session-active__info {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.bl-session-active__row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.bl-session-label {
+  color: var(--color-text-muted);
+}
+
+.bl-session-val {
+  color: var(--color-text);
+  font-weight: 500;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bl-session-count {
+  font-weight: 700;
+  color: #ffc2cc;
+}
+
+.bl-session-hint {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+}
+
+.bl-session-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.bl-btn--stop {
+  flex: 2;
+  background: #d43f5e;
+  color: #fff;
+  border: none;
+  font-weight: 600;
+}
+
+.bl-btn--stop:hover:not(:disabled) {
+  background: #ff4d6d;
+}
+
+/* ── Session Review ── */
+.bl-session-review {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bl-session-review__header {
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 8px;
+}
+
+.bl-session-review__title {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.bl-session-review__subtitle {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+.bl-empty-events {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 16px;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  text-align: center;
+}
+
+.bl-session-review__toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: var(--color-text-muted);
+}
+
+.bl-events-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.bl-event-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.bl-event-item:hover {
+  border-color: var(--color-accent);
+}
+
+.bl-event-item--selected {
+  border-color: rgba(124, 106, 247, 0.7);
+  background: rgba(124, 106, 247, 0.08);
+}
+
+.bl-event-item input[type="checkbox"] {
+  margin-top: 2px;
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.bl-event-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bl-event-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bl-event-tag {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.bl-event-tag--error {
+  background: rgba(220, 53, 69, 0.2);
+  color: #ff6b81;
+}
+
+.bl-event-tag--unhandledrejection {
+  background: rgba(255, 159, 67, 0.2);
+  color: #ffa502;
+}
+
+.bl-event-time {
+  font-size: 10.5px;
+  color: var(--color-text-muted);
+}
+
+.bl-event-message {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--color-text);
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+.bl-event-source {
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bl-session-review__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+}

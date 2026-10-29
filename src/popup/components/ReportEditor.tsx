@@ -27,7 +27,7 @@ const field =
  * auto-populated text so the user knows to review before sharing.
  */
 export function ReportEditor({ report, onChange }: ReportEditorProps) {
-  const isCapturedEvidence = report.evidence.startsWith("[Captured from page]");
+  const isCapturedEvidence = report.evidence.includes("[Captured");
 
   return (
     <form
