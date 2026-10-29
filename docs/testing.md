@@ -2,11 +2,19 @@
 
 ## How to Run Tests
 
-```bash
-npm test            # Run all tests once (vitest run)
-npm run test:watch  # Watch mode during development
-npm run type-check  # TypeScript — must be 0 errors before any PR
-```
+---
+
+## Manual Test Scenarios
+
+These require loading the unpacked extension in Chrome (`chrome://extensions` → Developer mode → Load unpacked → `.output/chrome-mv3/`).
+
+### MT-1: Normal HTTPS Page (No Selection)
+
+1. Open `https://example.com`
+2. Click BugLens icon
+3. Click "Capture This Page"
+4. **Expected:** CapturePreview shows correct URL, title, timestamp. "Selected text" row is absent.
+5. **Result: ✅ PASS** — Observed 2026-10-29. URL, title, and ISO timestamp displayed correctly. No "Selected text" row rendered.
 
 ---
 
@@ -27,6 +35,35 @@ Test Files  3 passed (3)
 **Type-check:** `tsc --noEmit` → **0 errors**
 
 ---
+1. Open `https://example.com`
+2. Select some text (e.g. "This domain is for use...")
+3. Click BugLens icon and capture
+4. **Expected:** CapturePreview shows the selected text in the "Selected text" row.
+5. **Result: ✅ PASS** — Observed 2026-10-29. Selected text appeared in the preview under "Selected text".
+
+### MT-3: Normal HTTPS Page (No Selection — explicit no-selection case)
+
+1. Open any HTTPS page with no text selected
+2. Click BugLens icon and capture
+3. **Expected:** Capture succeeds; no "Selected text" row; no error.
+4. **Result: ✅ PASS** — Observed 2026-10-29. Capture completed without error. Empty `selectedText` treated correctly as valid, not an error state.
+
+### MT-4: Restricted Page (chrome://)
+
+1. Open `chrome://extensions`
+2. Click BugLens icon and capture
+3. **Expected:** Error banner appears with a message indicating the page type is not supported.
+4. **Result: ✅ PASS** — Observed 2026-10-29. Error banner shown: "BugLens cannot capture from this page type (chrome:). Please navigate to a regular web page (http:// or https://) and try again."
+
+---
+
+### MT-5: New Tab / about:blank *(NOT RUN)*
+
+1. Open a new tab (`about:blank` or the Chrome new-tab page `chrome://newtab`)
+2. Click BugLens icon and capture
+3. **Expected:** Error banner with restriction message (same class of error as MT-4).
+
+### MT-6: No Data Exfiltration *(NOT RUN)*
 
 ## Person A — Capture Tests (`src/utils/__tests__/capture.test.ts`) — 22 tests ✅
 
@@ -51,7 +88,7 @@ Test Files  3 passed (3)
 | `captureActiveTab` silently treats scripting failure as empty selection | ✅ |
 | + 5 more edge cases | ✅ |
 
----
+### MT-7: Extension Icon on Non-http/s Page (file://) *(NOT RUN)*
 
 ## Person B — Report Init Tests (`src/lib/__tests__/reportInit.test.ts`) — 18 tests ✅
 
@@ -130,6 +167,12 @@ These require the extension loaded in Chrome (`.output/chrome-mv3/`). Not yet ru
 
 ## Known Gaps
 
-- No React component integration tests — core logic fully covered by 37 unit tests; component interaction requires a browser or Playwright setup.
-- `@vitest-environment jsdom` annotation in `markdown.test.ts` adds ~1.3s startup; acceptable for CI.
-- Manual tests M1–M13 require the extension loaded in Chrome — not automatable without a browser-extension testing harness (e.g. Playwright + `chrome-launcher`).
+Expected: zero errors in `src/`.
+
+## Production Build
+
+```bash
+npm run build
+```
+
+**Result (2026-10-29, integration-readiness re-run): ✅ Built in 492 ms → `.output/chrome-mv3/`.**
