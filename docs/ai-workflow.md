@@ -307,3 +307,49 @@ No source files were modified. Only `docs/testing.md` and `docs/ai-workflow.md` 
 ### Git Status at End of Check
 
 Working tree remains clean except for the two doc edits above (not yet committed — as instructed, no automatic commits).
+
+---
+
+## Post-Merge Integration & Verification — 2026-10-29
+
+### Task
+
+Verify the combined codebase after Person B's report-workflow PR (#1, commit `63f48e7`) was merged into `main`. Do not rewrite working code or push automatically.
+
+### Inspection & Pull
+
+1. Ran `git pull origin main` (fast-forwarded from `167fdaf` to `63f48e7`).
+2. Confirmed Person B's files were present:
+   - `src/lib/reportInit.ts` & `src/lib/markdown.ts`
+   - `src/lib/__tests__/reportInit.test.ts` & `src/lib/__tests__/markdown.test.ts`
+   - `src/popup/components/ReportEditor.tsx`, `StepsEditor.tsx`, `ExportPanel.tsx`, `Toast.tsx`, `ValidationWarnings.tsx`
+   - Integration in `src/popup/App.tsx`
+   - Permission `clipboardWrite` in `wxt.config.ts`
+3. Confirmed contract: All modules import `CapturedContext` and `BugReport` from `src/types/bug-report.ts`. No duplicate contracts or duplicate capture logic exist.
+
+### Integration Issues Found and Fixed
+
+1. **Unused import in `src/popup/App.tsx`:** `useEffect` was imported but never used. Removed unused import.
+2. **Unused import in `src/lib/__tests__/reportInit.test.ts`:** `CapturedContext` type import was unused. Removed unused import.
+3. **Corrupted merge in `docs/testing.md`:** The git merge had interleaved Person A's and Person B's manual test tables. Cleaned and structured `docs/testing.md` with all 59 unit tests and clearly separated manual test statuses (MT-1 to MT-4 PASS; MT-5 to MT-7 and M1 to M12 NOT RUN).
+4. **Outdated `README.md`:** Updated project structure tree and permissions table to include `src/lib/` and `clipboardWrite`.
+
+### Verification Results
+
+| Command | Status | Result |
+|---------|--------|--------|
+| `npm run type-check` | ✅ PASSED | 0 errors |
+| `npm test` | ✅ PASSED | 59/59 tests passed (3 test files) in 489ms |
+| `npm run lint` | ✅ PASSED | 0 errors (after fixing the 2 unused imports) |
+| `npm run build` | ✅ PASSED | Production build completed in ~400ms (`.output/chrome-mv3/`, total 164.71 kB) |
+
+### Manual Testing Status
+
+- Browser capture tests MT-1 through MT-4: ✅ **PASS** (observed 2026-10-29 in Chrome).
+- Integrated end-to-end report workflow tests M1 through M10: ✅ **PASS** (observed 2026-10-29 in Chrome — capture → edit report → review → Markdown copy/download).
+- Remaining unverified manual scenarios:
+  - MT-5 (`about:blank`): ⏳ **NOT RUN**
+  - MT-6 (DevTools network exfiltration check): ⏳ **NOT RUN**
+  - MT-7 (`file://` page): ⏳ **NOT RUN**
+  - M11 (Validation warnings UI for incomplete fields): ⏳ **NOT RUN**
+  - M12 (Capture reset via "New" button): ⏳ **NOT RUN**

@@ -49,17 +49,33 @@ This starts WXT in watch mode and outputs the unpacked extension to `.output/chr
 
 ```
 src/
-├── background/      # MV3 Service Worker (capture logic lives here)
-├── popup/           # Extension popup UI
-│   ├── components/  # CaptureButton, CapturePreview, ErrorBanner
-│   ├── App.tsx      # Root component — wire Person B's editor here
-│   └── popup.css    # Styles
+├── entrypoints/
+│   ├── background.ts    # Person A — MV3 Service Worker (capture handler)
+│   └── popup/
+│       ├── index.html   # Popup entry HTML
+│       └── main.tsx     # React mount point
+├── popup/               # Extension popup UI
+│   ├── components/      # UI components
+│   │   ├── CaptureButton.tsx       # Person A — trigger capture
+│   │   ├── CapturePreview.tsx      # Person A — captured data summary
+│   │   ├── ErrorBanner.tsx         # Person A — error display
+│   │   ├── ReportEditor.tsx        # Person B — bug report form
+│   │   ├── StepsEditor.tsx         # Person B — reproduction steps manager
+│   │   ├── ExportPanel.tsx         # Person B — Markdown preview & export
+│   │   ├── Toast.tsx               # Person B — feedback notifications
+│   │   └── ValidationWarnings.tsx  # Person B — completeness warnings
+│   ├── App.tsx          # Root component (capture state + report workflow)
+│   └── popup.css        # Styles (Person A base + Person B bl-* components)
+├── lib/                 # Pure business logic (Person B)
+│   ├── reportInit.ts    # Context to BugReport initializer & validator
+│   ├── markdown.ts      # Markdown generator, copy & download
+│   └── __tests__/       # Lib unit tests
 ├── types/
-│   ├── bug-report.ts  # Shared CapturedContext + BugReport types
-│   └── messages.ts    # Extension messaging contract
+│   ├── bug-report.ts    # Shared CapturedContext + BugReport types
+│   └── messages.ts      # Extension messaging contract
 └── utils/
-    ├── capture.ts       # Core capture logic
-    └── __tests__/       # Unit tests
+    ├── capture.ts       # Core browser capture logic
+    └── __tests__/       # Capture unit tests
 ```
 
 ## Permissions
@@ -69,6 +85,7 @@ src/
 | `tabs` | Read the active tab's URL and title |
 | `scripting` | Inject a one-shot function to read `window.getSelection()` |
 | `activeTab` | Scope `scripting` to only the current active tab — no broad host access |
+| `clipboardWrite` | Write generated Markdown report to clipboard on user copy action |
 
 ## Docs
 

@@ -7,7 +7,6 @@ import {
   MOCK_CONTEXT_NO_SELECTION,
   MOCK_CONTEXT_MINIMAL,
 } from "../reportInit";
-import type { CapturedContext } from "../../types/bug-report";
 
 // ── initReportFromContext ────────────────────────────────────────────────────
 

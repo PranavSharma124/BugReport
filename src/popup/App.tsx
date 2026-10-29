@@ -12,7 +12,7 @@
  * Do NOT change the capture flow above it.
  */
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import type { CapturedContext, BugReport } from "../types/bug-report";
 import type { CaptureRequest, CaptureResponse } from "../types/messages";
 import { CaptureButton } from "./components/CaptureButton";
