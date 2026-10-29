@@ -225,3 +225,335 @@ body {
 .error-dismiss-btn:hover {
   opacity: 0.8;
 }
+
+/* ═══════════════════════════════════════════════════
+   Person B — Report Editor styles  (bl- prefix)
+   All classes here are scoped with "bl-" to avoid
+   collision with Person A's existing rules above.
+   ═══════════════════════════════════════════════════ */
+
+/* ── Report section wrapper ── */
+.bl-report-section {
+  border-top: 1px solid var(--color-border);
+  margin-top: 4px;
+  padding-top: 12px;
+}
+
+/* ── Tab bar ── */
+.bl-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: 12px;
+}
+
+.bl-tab {
+  flex: 1;
+  padding: 7px 8px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--color-text-muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.bl-tab:hover {
+  color: var(--color-text);
+}
+
+.bl-tab--active {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+}
+
+/* ── Form base ── */
+.bl-report-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bl-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bl-field__label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-text-muted);
+}
+
+.bl-required {
+  color: #e05a6a;
+}
+
+.bl-field__hint {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  margin-top: 3px;
+  line-height: 1.5;
+}
+
+.bl-captured-badge {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: #9ba8e0;
+  background: rgba(91, 106, 240, 0.15);
+  border: 1px solid rgba(91, 106, 240, 0.3);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* ── Inputs ── */
+.bl-input,
+.bl-textarea {
+  width: 100%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 12.5px;
+  padding: 7px 10px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  resize: none;
+}
+
+.bl-input:focus,
+.bl-textarea:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 2px rgba(124, 106, 247, 0.2);
+}
+
+.bl-input::placeholder,
+.bl-textarea::placeholder {
+  color: var(--color-text-muted);
+  opacity: 0.7;
+}
+
+.bl-textarea--mono {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+/* ── Divider ── */
+.bl-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 2px 0;
+}
+
+/* ── Buttons ── */
+.bl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
+  white-space: nowrap;
+}
+
+.bl-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.bl-btn--primary {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+.bl-btn--primary:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+.bl-btn--ghost {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.bl-btn--ghost:hover:not(:disabled) {
+  color: var(--color-text);
+  border-color: var(--color-accent);
+}
+
+.bl-btn--danger {
+  background: transparent;
+  color: #e05a6a;
+  border: 1px solid transparent;
+  padding: 4px 6px;
+}
+
+.bl-btn--danger:hover:not(:disabled) {
+  background: rgba(224, 90, 106, 0.1);
+  border-color: #e05a6a;
+}
+
+.bl-btn--add-step {
+  width: 100%;
+  justify-content: center;
+  border-style: dashed !important;
+  margin-top: 6px;
+}
+
+/* ── Steps list ── */
+.bl-steps-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.bl-step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.bl-step-number {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-text-muted);
+  margin-top: 5px;
+}
+
+.bl-step-item .bl-input {
+  flex: 1;
+}
+
+.bl-empty-steps {
+  font-size: 12px;
+  color: var(--color-text-muted);
+  margin-bottom: 4px;
+}
+
+/* ── Export panel ── */
+.bl-export-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bl-privacy-notice {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  line-height: 1.6;
+}
+
+.bl-privacy-notice strong {
+  color: var(--color-text);
+}
+
+.bl-markdown-preview {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.7;
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.bl-export-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* ── Validation warnings ── */
+.bl-warning-list {
+  background: rgba(245, 166, 35, 0.08);
+  border: 1px solid rgba(245, 166, 35, 0.5);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.bl-warning-list__title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #f5a623;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+.bl-warning-list ul {
+  list-style: disc;
+  padding-left: 16px;
+}
+
+.bl-warning-list li {
+  font-size: 11.5px;
+  color: #f5a623;
+}
+
+/* ── Toast ── */
+.bl-toast {
+  position: fixed;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text);
+  z-index: 100;
+  pointer-events: none;
+  animation: bl-toast-in 180ms ease;
+  white-space: nowrap;
+}
+
+.bl-toast.success {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+
+.bl-toast.error {
+  border-color: var(--color-error-text);
+  color: var(--color-error-text);
+}
+
+@keyframes bl-toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(6px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
