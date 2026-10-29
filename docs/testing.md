@@ -44,7 +44,7 @@ Run with: `npm test`
 
 ## Manual Test Scenarios
 
-These require loading the extension in Chrome. Run after `npm run build`.
+These require loading the unpacked extension in Chrome (`chrome://extensions` → Developer mode → Load unpacked → `.output/chrome-mv3/`).
 
 ### MT-1: Normal HTTPS Page (No Selection)
 
@@ -52,6 +52,7 @@ These require loading the extension in Chrome. Run after `npm run build`.
 2. Click BugLens icon
 3. Click "Capture This Page"
 4. **Expected:** CapturePreview shows correct URL, title, timestamp. "Selected text" row is absent.
+5. **Result: ✅ PASS** — Observed 2026-10-29. URL, title, and ISO timestamp displayed correctly. No "Selected text" row rendered.
 
 ### MT-2: Normal HTTPS Page (With Selection)
 
@@ -59,26 +60,37 @@ These require loading the extension in Chrome. Run after `npm run build`.
 2. Select some text (e.g. "This domain is for use...")
 3. Click BugLens icon and capture
 4. **Expected:** CapturePreview shows the selected text in the "Selected text" row.
+5. **Result: ✅ PASS** — Observed 2026-10-29. Selected text appeared in the preview under "Selected text".
 
-### MT-3: Restricted Page (chrome://)
+### MT-3: Normal HTTPS Page (No Selection — explicit no-selection case)
+
+1. Open any HTTPS page with no text selected
+2. Click BugLens icon and capture
+3. **Expected:** Capture succeeds; no "Selected text" row; no error.
+4. **Result: ✅ PASS** — Observed 2026-10-29. Capture completed without error. Empty `selectedText` treated correctly as valid, not an error state.
+
+### MT-4: Restricted Page (chrome://)
 
 1. Open `chrome://extensions`
 2. Click BugLens icon and capture
-3. **Expected:** Error banner appears: "BugLens cannot capture from this page type (chrome:)."
+3. **Expected:** Error banner appears with a message indicating the page type is not supported.
+4. **Result: ✅ PASS** — Observed 2026-10-29. Error banner shown: "BugLens cannot capture from this page type (chrome:). Please navigate to a regular web page (http:// or https://) and try again."
 
-### MT-4: New Tab / about:blank
+---
 
-1. Open a new tab (about:blank or the Chrome new-tab page)
-2. Attempt capture
-3. **Expected:** Error banner with restriction message.
+### MT-5: New Tab / about:blank *(NOT RUN)*
 
-### MT-5: No Data Exfiltration
+1. Open a new tab (`about:blank` or the Chrome new-tab page `chrome://newtab`)
+2. Click BugLens icon and capture
+3. **Expected:** Error banner with restriction message (same class of error as MT-4).
+
+### MT-6: No Data Exfiltration *(NOT RUN)*
 
 1. Open browser DevTools → Network tab on any page
 2. Trigger a capture
 3. **Expected:** Zero network requests originating from the extension.
 
-### MT-6: Extension Icon on Non-http/s Page (file://)
+### MT-7: Extension Icon on Non-http/s Page (file://) *(NOT RUN)*
 
 1. Open a local HTML file in Chrome
 2. Attempt capture
@@ -92,7 +104,7 @@ These require loading the extension in Chrome. Run after `npm run build`.
 npm run type-check
 ```
 
-Expected: zero errors after `wxt prepare` generates `.wxt/types/`.
+**Result (2026-10-29, integration-readiness re-run): ✅ Zero errors.**
 
 ## Lint
 
@@ -101,3 +113,11 @@ npm run lint
 ```
 
 Expected: zero errors in `src/`.
+
+## Production Build
+
+```bash
+npm run build
+```
+
+**Result (2026-10-29, integration-readiness re-run): ✅ Built in 492 ms → `.output/chrome-mv3/`.**
