@@ -31,7 +31,18 @@ export default defineBackground(() => {
     ) => {
       // 1. Instant Capture Snapshot (Existing Contract — Unchanged)
       if (message.type === "CAPTURE_TAB") {
-        captureActiveTab()
+        const resolveContext = async () => {
+          if (message.tabId != null) {
+            try {
+              return await captureTabById(message.tabId);
+            } catch {
+              // Fall back to active tab query
+            }
+          }
+          return await captureActiveTab();
+        };
+
+        resolveContext()
           .then((data) => sendResponse({ ok: true, data }))
           .catch((err: unknown) => {
             const errorMessage =
@@ -195,11 +206,12 @@ export default defineBackground(() => {
 
   if (chrome.tabs?.onUpdated) {
     chrome.tabs.onUpdated.addListener((updatedTabId, changeInfo) => {
-      // Invalidate active session if the target tab reloads or navigates
+      // Invalidate active session if the target tab reloads or navigates to a new URL
       if (changeInfo.status === "loading" || changeInfo.url != null) {
         invalidateSession(
           updatedTabId,
-          "Capture stopped because the page was reloaded or navigated."
+          "Capture stopped because the page was reloaded or navigated.",
+          { gracePeriodMs: 2500 }
         ).catch(() => {});
       }
     });

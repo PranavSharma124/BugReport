@@ -96,7 +96,23 @@ export function App() {
     setCaptureState({ status: "capturing" });
 
     try {
-      const request: CaptureRequest = { type: "CAPTURE_TAB" };
+      let activeTabId: number | undefined;
+      if (typeof chrome !== "undefined" && chrome.tabs?.query) {
+        try {
+          const [tab] = await chrome.tabs.query({
+            active: true,
+            currentWindow: true,
+          });
+          activeTabId = tab?.id;
+        } catch {
+          // ignore
+        }
+      }
+
+      const request: CaptureRequest = {
+        type: "CAPTURE_TAB",
+        tabId: activeTabId,
+      };
       const response: CaptureResponse = await chrome.runtime.sendMessage(request);
 
       if (response.ok) {

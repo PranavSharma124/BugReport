@@ -16,6 +16,7 @@ import type {
 /** Message sent by the popup to request a tab capture. */
 export type CaptureRequest = {
   type: "CAPTURE_TAB";
+  tabId?: number;
 };
 
 /** Response from the background after a capture attempt. */

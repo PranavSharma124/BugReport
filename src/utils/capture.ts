@@ -155,10 +155,16 @@ export async function captureTabById(tabId: number): Promise<CapturedContext> {
  * @throws {Error} When tab URL/title are unavailable (missing "tabs" permission — should not happen).
  */
 export async function captureActiveTab(): Promise<CapturedContext> {
-  // Step 1: Identify the active tab in the current window.
-  let tabs: chrome.tabs.Tab[];
+  // Step 1: Identify the active tab in the focused or current window.
+  let tabs: chrome.tabs.Tab[] = [];
   try {
-    tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+    if (!tabs || tabs.length === 0) {
+      tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    }
+    if (!tabs || tabs.length === 0) {
+      tabs = await chrome.tabs.query({ active: true });
+    }
   } catch (err) {
     throw new Error(
       "Could not query browser tabs. Please check extension permissions. " +

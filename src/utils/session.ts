@@ -141,6 +141,7 @@ function mainWorldErrorTrap(channelName: string) {
         timestamp: new Date().toISOString(),
       };
       document.dispatchEvent(new CustomEvent(channelName, { detail }));
+      window.postMessage({ channel: channelName, detail }, "*");
     } catch {
       // Avoid throwing from the error listener
     }
@@ -159,6 +160,7 @@ function mainWorldErrorTrap(channelName: string) {
         timestamp: new Date().toISOString(),
       };
       document.dispatchEvent(new CustomEvent(channelName, { detail }));
+      window.postMessage({ channel: channelName, detail }, "*");
     } catch {
       // Avoid throwing from the rejection listener
     }
@@ -218,6 +220,12 @@ function isolatedWorldBridgeReceiver(channelName: string, token: string) {
         win.__BUGLENS_ON_CUSTOM_EVENT__ as EventListener
       );
     }
+    if (typeof win.__BUGLENS_ON_MESSAGE_EVENT__ === "function") {
+      window.removeEventListener(
+        "message",
+        win.__BUGLENS_ON_MESSAGE_EVENT__ as EventListener
+      );
+    }
   }
   win.__BUGLENS_BRIDGE_ACTIVE__ = true;
   win.__BUGLENS_CURRENT_CHANNEL__ = channelName;
@@ -249,8 +257,18 @@ function isolatedWorldBridgeReceiver(channelName: string, token: string) {
     }
   };
 
+  const onMessageEvent = (e: MessageEvent) => {
+    if (e.source !== window) return;
+    if (e.data && e.data.channel === channelName && e.data.detail) {
+      forwardEvent(e.data.detail);
+    }
+  };
+
   win.__BUGLENS_ON_CUSTOM_EVENT__ = onCustomEvent;
+  win.__BUGLENS_ON_MESSAGE_EVENT__ = onMessageEvent;
+
   document.addEventListener(channelName, onCustomEvent as EventListener);
+  window.addEventListener("message", onMessageEvent as EventListener);
 }
 
 /**
@@ -266,10 +284,17 @@ function isolatedWorldBridgeCleanup(channelName: string) {
       win.__BUGLENS_ON_CUSTOM_EVENT__ as EventListener
     );
   }
+  if (typeof win.__BUGLENS_ON_MESSAGE_EVENT__ === "function") {
+    window.removeEventListener(
+      "message",
+      win.__BUGLENS_ON_MESSAGE_EVENT__ as EventListener
+    );
+  }
 
   delete win.__BUGLENS_BRIDGE_ACTIVE__;
   delete win.__BUGLENS_CURRENT_CHANNEL__;
   delete win.__BUGLENS_ON_CUSTOM_EVENT__;
+  delete win.__BUGLENS_ON_MESSAGE_EVENT__;
 }
 
 // ─── Public Session API ──────────────────────────────────────────────────────
@@ -546,10 +571,15 @@ export async function cancelSession(): Promise<void> {
  */
 export async function invalidateSession(
   tabId: number,
-  reason: string
+  reason: string,
+  options?: { gracePeriodMs?: number }
 ): Promise<void> {
   const session = await getStoredSession();
   if (session && session.tabId === tabId) {
+    const graceMs = options?.gracePeriodMs ?? 0;
+    if (graceMs > 0 && Date.now() - session.startedAt < graceMs) {
+      return;
+    }
     await cleanSession(tabId, session.channelName);
     await setStoredInvalidation({
       tabId,
